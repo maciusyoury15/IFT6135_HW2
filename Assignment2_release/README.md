@@ -1,7 +1,7 @@
 ## Clone the repository
 ```bash
-git clone https://github.com/Tikquuss/IFT6135_W25_A2_release
-cd IFT6135_W25_A2_release
+git clone https://github.com/maciusyoury15/IFT6135_HW2
+cd Assignment2_release
 pip install -r requirements.txt
 ```
 

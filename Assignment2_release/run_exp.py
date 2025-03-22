@@ -222,7 +222,9 @@ if __name__ == "__main__":
         help="random seed (default: %(default)s).",
     )
     misc.add_argument(
-        "--verbose", action="store_true", help="print additional information."
+        "--verbose",
+        action="store_true",
+        help="print additional information."
     )
 
     args = parser.parse_args()

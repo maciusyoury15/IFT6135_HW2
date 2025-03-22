@@ -1,7 +1,7 @@
 ## Clone the repository
 ```bash
 git clone https://github.com/maciusyoury15/IFT6135_HW2
-cd Assignment2_release
+#cd
 pip install -r requirements.txt
 ```
 

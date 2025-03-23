@@ -44,12 +44,20 @@ class LayerNorm(nn.Module):
         outputs (`torch.FloatTensor` of shape `(*dims, hidden_size)`)
             The output tensor, having the same shape as `inputs`.
         """
+        # Calculate the mean along the last dimension
+        mean = inputs.mean(dim=-1, keepdim=True)
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        
-        raise NotImplementedError
+        # Calculate the variance along the last dimension
+        var = ((inputs - mean) ** 2).mean(dim=-1, keepdim=True)
+
+        # Normalize the input
+        normalized_inputs = (inputs - mean) / torch.sqrt(var + self.eps)
+
+        # Scale and shift using learnable parameters
+        outputs = self.weight * normalized_inputs + self.bias
+
+        return outputs
+
 
     def reset_parameters(self):
         nn.init.ones_(self.weight)
@@ -66,7 +74,7 @@ class MultiHeadedAttention(nn.Module):
         assert d_model % num_heads == 0
         self.head_size = d_model // num_heads
         self.num_heads = num_heads
-      
+
         self.W_Q = nn.Linear(d_model, d_model, bias=bias)
         self.W_K = nn.Linear(d_model, d_model, bias=bias)
         self.W_V = nn.Linear(d_model, d_model, bias=bias)
@@ -77,7 +85,7 @@ class MultiHeadedAttention(nn.Module):
         Compute the attention weights.
 
         This computes the attention weights for all the sequences and all the
-        heads in the batch. For a single sequence and a single head (for simplicity), 
+        heads in the batch. For a single sequence and a single head (for simplicity),
         if Q are the queries (matrix of size `(sequence_length, head_size)`),
         and K are the keys (matrix of size `(sequence_length, head_size)`), then
         the attention weights are computed as
@@ -86,7 +94,7 @@ class MultiHeadedAttention(nn.Module):
 
         Here "*" is the matrix multiplication. Your attention weights must
         take into account the fact that we have a causal language model, i.e.
-        there should be no influence from the future, attention is only computed on the past. 
+        there should be no influence from the future, attention is only computed on the past.
 
         Parameters
         ----------
@@ -173,7 +181,7 @@ class MultiHeadedAttention(nn.Module):
             the sequences in the batch. This tensor is used for visualization
             purposes only, and it is not used in the computation graph for
             backpropagation. It is returned here for debugging purposes.
-            
+
         """
 
         # ==========================
@@ -187,9 +195,9 @@ class MultiHeadedAttention(nn.Module):
         """
         Split the head vectors.
 
-        This function splits the head vectors that have been concatenated (e.g. through the `merge_heads` function) 
+        This function splits the head vectors that have been concatenated (e.g. through the `merge_heads` function)
         into a separate dimension. This function also transposes the `sequence_length` and `num_heads` axes.
-        It only reshapes and transposes the input tensor, and it does not apply any further transformation to the tensor. 
+        It only reshapes and transposes the input tensor, and it does not apply any further transformation to the tensor.
         The function `split_heads` is the inverse of the function `merge_heads`.
 
         Parameters
@@ -200,15 +208,18 @@ class MultiHeadedAttention(nn.Module):
         Returns
         -------
         output (`torch.FloatTensor` of shape `(batch_size, num_heads, sequence_length, dim)`)
-            Reshaped and transposed tensor containing the separated head vectors. 
+            Reshaped and transposed tensor containing the separated head vectors.
             Here `dim` is the same dimension as the one in the definition of the input `tensor` above.
         """
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
+        batch_size, sequence_length, d_model = tensor.shape()
 
-        raise NotImplementedError
+        # Reshape the tensor to separate the head dimension
+        tensor = tensor.view(batch_size, sequence_length, self.num_heads, self.head_size)
+
+        # Transpoze sequence_length and num_heads
+        return tensor.transpose(1, 2)
+
 
     def merge_heads(self, tensor):
         """
@@ -228,15 +239,17 @@ class MultiHeadedAttention(nn.Module):
         Returns
         -------
         output (`torch.FloatTensor` of shape `(batch_size, sequence_length, num_heads * dim)`)
-            Reshaped and transposed tensor containing the concatenated head vectors. 
+            Reshaped and transposed tensor containing the concatenated head vectors.
             Here `dim` is the same dimension as the one in the definition of the input `tensor` above.
         """
+        batch_size, num_heads, sequence_length, head_size = tensor.shape()
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        
-        raise NotImplementedError
+        # Reshape the tensor to switch num_heads and sequence_length
+        tensor = tensor.reshape(1, 2)
+
+        # Concatenate the head vectors
+        return tensor.contiguous().view(batch_size, sequence_length, num_heads * head_size)
+
 
     def forward(self,  queries: Tensor, keys: Tensor, values: Tensor):
         """
@@ -245,9 +258,9 @@ class MultiHeadedAttention(nn.Module):
         This applies the multi-headed attention on the input tensors `queries`,
         `keys`, and `values`. For self-attention, these three tensors are the
         same, but they can be different for cross-attention. For self-attention,
-        these are the hidden states from the previous layer (a matrix of size 
-        `(sequence_length, num_heads * head_size)` containing the concatenated head vectors). 
-        For cross-attention, the keys and values are the hidden states from the decoder, 
+        these are the hidden states from the previous layer (a matrix of size
+        `(sequence_length, num_heads * head_size)` containing the concatenated head vectors).
+        For cross-attention, the keys and values are the hidden states from the decoder,
         while the queries are the hidden states from the encoder.
 
         The output of multi-headed attention is given by
@@ -260,9 +273,9 @@ class MultiHeadedAttention(nn.Module):
             outputs = context * W_{O} + b_{O}         # Linear projection
 
         Here "*" is the matrix multiplication.
-        
-        The function also returns the attention scores (return by apply_attention) 
-        and the values (V) for visualization purposes only. These tensors are not 
+
+        The function also returns the attention scores (return by apply_attention)
+        and the values (V) for visualization purposes only. These tensors are not
         used in the computation graph for backpropagation. They are returned here for debugging purposes.
 
         Parameters
@@ -277,13 +290,13 @@ class MultiHeadedAttention(nn.Module):
         values (`torch.FloatTensor` of shape `(batch_size, sequence_length, d_model)`)
             Tensor containing the values for all the positions in the sequences.
 
-        
+
         Returns
         -------
         output (`torch.FloatTensor` of shape `(batch_size, sequence_length, num_heads * head_size)`)
             Tensor containing the output of multi-headed attention for all the
             sequences in the batch, and all positions in each sequence.
-        
+
         attn_weights (`torch.FloatTensor` of shape `(batch_size, num_heads, sequence_length, sequence_length)`)
             Tensor containing the attention weights for all the heads and all
             the sequences in the batch. This tensor is used for visualization
@@ -294,12 +307,12 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         # TODO: Write your code here
         # ==========================
-        
+
         raise NotImplementedError
 
         # Use clone().detach() to detach attn_weights from the computation graph
         # Since we don't need to backpropagate through them, we can detach them from the graph
-        
+
 
 ########################################################################################
 ########################################################################################
@@ -323,7 +336,7 @@ class Block(nn.Module):
         assert non_linearity in ["relu", "gelu"]
         non_linearities = {"relu":nn.ReLU, "gelu":nn.GELU}
 
-        self.self_attn = MultiHeadedAttention(d_model, num_heads, bias=bias)   
+        self.self_attn = MultiHeadedAttention(d_model, num_heads, bias=bias)
         self.self_attn_norm = LayerNorm(d_model)
 
         d_ff = int(multiplier * d_model)
@@ -347,7 +360,7 @@ class Block(nn.Module):
         a2 = self.ffn_drop(a2)
         a2 = self.ffn_norm(a1 + a2)
 
-        # (B, S, d_model), 
+        # (B, S, d_model),
         # (B, num_heads, S, S)
         return a2, layer_attns
 
@@ -391,7 +404,7 @@ class Decoder(nn.Module):
             a, layer_attentions = block(a)
             hidden_states.append(a)
             attentions.append(layer_attentions)
-        
+
         # # (B, S, d_model),
         # # ( (B, S, d_model) x num_layers, (B, num_heads, S, S) x num_layers )
         # return a, (hidden_states, attentions)
@@ -405,7 +418,7 @@ class Decoder(nn.Module):
 
 class GPTEmbedding(nn.Module):
     def __init__(
-        self, 
+        self,
         vocabulary_size,
         embedding_size,
         n_max_positions,
@@ -423,7 +436,7 @@ class GPTEmbedding(nn.Module):
             The size of the token embeddings.
         n_max_positions : int
             The maximum number of positions to consider.
-        padding_index : int, optional 
+        padding_index : int, optional
             The index of the padding token in the vocabulary. Default is None.
         """
         super(GPTEmbedding, self).__init__()
@@ -431,7 +444,7 @@ class GPTEmbedding(nn.Module):
         self.tokens = nn.Embedding(vocabulary_size, embedding_size, padding_idx=padding_index)  # type: ignore
 
         self.register_buffer(
-            "position_encoding", 
+            "position_encoding",
             self.create_sinusoidal_embeddings(
                 n_positions=n_max_positions, dimension=embedding_size
             ) # (n_max_positions, embedding_size)
@@ -450,7 +463,7 @@ class GPTEmbedding(nn.Module):
             The number of positions to consider.
         dimension : int
             The size of the embeddings.
-        
+
         Returns
         -------
         position_enc (`torch.FloatTensor` of shape `(n_positions, dimension)`)
@@ -466,8 +479,8 @@ class GPTEmbedding(nn.Module):
 
     def forward(self, tokens: Tensor) -> Tensor:
         """
-        Return the embeddings from a sequence of input tokens 
-        
+        Return the embeddings from a sequence of input tokens
+
         Parameters
         ----------
         tokens (`torch.LongTensor` of shape `(batch_size, sequence_length)`)
@@ -480,21 +493,21 @@ class GPTEmbedding(nn.Module):
             The tensor containing the embeddings. For example, `embeddings[0, 2]`
             is the embedding vector for the token in 3rd position (index 2)
             of the 1st sequence in the batch (index 0).
-        
+
         """
         # ==========================
         # TODO: Write your code here
         # ==========================
-        
+
         raise NotImplementedError
 
 ########################################################################################
 ########################################################################################
-  
+
 class GPT(nn.Module):
     def __init__(
         self,
-        num_heads: int, 
+        num_heads: int,
         num_layers: int,
         embedding_size : int,
         vocabulary_size : int,
@@ -521,9 +534,9 @@ class GPT(nn.Module):
             embedding_size = embedding_size,
             n_max_positions = sequence_length,
             padding_index = padding_index
-        ) 
+        )
 
-        
+
         self.decoder = Decoder(
             d_model = embedding_size,
             num_heads = num_heads,
@@ -537,9 +550,9 @@ class GPT(nn.Module):
         self.classifier = nn.Linear(embedding_size, vocabulary_size, bias=bias_classifier)
 
         # Tying classifier and embedding weights
-        if share_embeddings:            
+        if share_embeddings:
             self.classifier.weight = self.embedding.tokens.weight
-  
+
     def forward(self, x: Tensor) -> Tuple[Tensor, Union[Tensor, None], Union[Tensor, None]]:
         """
         parameters:
@@ -548,9 +561,9 @@ class GPT(nn.Module):
 
         returns:
             logits : (batch_size, sequence_length, vocab_size)
-            (hidden_states, attentions) :  
-                (batch_size, sequence_length, embedding_dimension) 
-                and 
+            (hidden_states, attentions) :
+                (batch_size, sequence_length, embedding_dimension)
+                and
                 (batch_size, num_layers, num_heads, sequence_length, sequence_length)
         """
 
@@ -560,7 +573,7 @@ class GPT(nn.Module):
 ########################################################################################
 
 if __name__ == "__main__":
-    
+
     # Data
     vocabulary_size=4
     batch_size, sequence_length = 10, 5
@@ -574,14 +587,14 @@ if __name__ == "__main__":
     inputs = sequences[:,:-1] # (batch_size, sequence_length)
     targets = sequences[:,1:] # (batch_size, sequence_length)
 
-    # Model 
+    # Model
     embedding_size=6
     num_heads=2
     num_layers=4
     assert embedding_size % num_heads == 0
 
     model = GPT(
-        num_heads, 
+        num_heads,
         num_layers,
         embedding_size,
         vocabulary_size,

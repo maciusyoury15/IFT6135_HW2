@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="842bdf98-98bf-4595-86be-cd8270126096" name="Changes" comment="Classes LSTMCell, LSTM, LSTMLM">
+    <list default="true" id="842bdf98-98bf-4595-86be-cd8270126096" name="Changes" comment="gpt.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gpt.py" beforeDir="false" afterPath="$PROJECT_DIR$/gpt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lstm.py" beforeDir="false" afterPath="$PROJECT_DIR$/lstm.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,21 +37,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.lstm.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "C:/Users/maciu/OneDrive - Universite de Montreal/Documents/1-UNIVERSITE DE MONTREAL/1-COURS/3- Hiver 2025/1- IFT6135 - Representation Learning/3- Devoirs/HW2",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.lstm.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/maciu/OneDrive - Universite de Montreal/Documents/1-UNIVERSITE DE MONTREAL/1-COURS/3- Hiver 2025/1- IFT6135 - Representation Learning/3- Devoirs/HW2&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -71,6 +72,7 @@
       <workItem from="1742660514750" duration="11094000" />
       <workItem from="1742686339838" duration="1650000" />
       <workItem from="1742708648953" duration="4237000" />
+      <workItem from="1742770539055" duration="5075000" />
     </task>
     <task id="LOCAL-00001" summary="upload HW2">
       <option name="closed" value="true" />
@@ -112,7 +114,15 @@
       <option name="project" value="LOCAL" />
       <updated>1742709099744</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="gpt.py">
+      <option name="closed" value="true" />
+      <created>1742772472952</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1742772472952</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -123,7 +133,8 @@
     <MESSAGE value="update architecture" />
     <MESSAGE value="update README.md" />
     <MESSAGE value="Classes LSTMCell, LSTM, LSTMLM" />
-    <option name="LAST_COMMIT_MESSAGE" value="Classes LSTMCell, LSTM, LSTMLM" />
+    <MESSAGE value="gpt.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="gpt.py" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/HW2$lstm.coverage" NAME="lstm Coverage Results" MODIFIED="1742708946952" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

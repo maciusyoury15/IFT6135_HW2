@@ -128,8 +128,8 @@ class LSTM(nn.Module):
 
         # Initialize hidden and cell states if not provided.
         if hx is None:
-            h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=x.device)
-            c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, dtype=x.dtype)
+            h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=x.device, dtype=x.dtype)
+            c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=x.device, dtype=x.dtype)
         else:
             h0, c0 = hx  # (num_layers, batch_size, hidden_size), (num_layers, batch_size, hidden_size)
 

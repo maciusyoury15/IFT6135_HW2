@@ -11,6 +11,7 @@ import math
 
 from typing import Tuple, List, Dict, Union
 
+
 ########################################################################################
 ########################################################################################
 
@@ -58,10 +59,10 @@ class LayerNorm(nn.Module):
 
         return outputs
 
-
     def reset_parameters(self):
         nn.init.ones_(self.weight)
         nn.init.zeros_(self.bias)
+
 
 ########################################################################################
 ########################################################################################
@@ -121,12 +122,23 @@ class MultiHeadedAttention(nn.Module):
             model here, `attention_weights[1, 3, 5, 7] == 0`, since the 8th token
             should not influence on the 6th token (7 > 5).
         """
+        # Calculate the raw attention scores
+        scores = torch.matmul(queries, keys.transpose(-2, -1)) / math.sqrt(self.head_size)
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
+        # Apply causal mask to ensure no attention to future tokens
+        sequence_length = queries.shape[-2]
+        causal_mask = torch.triu(torch.ones(sequence_length, sequence_length), diagonal=1).bool()
 
-        raise NotImplementedError
+        # Convert to device of scores
+        causal_mask = causal_mask.to(scores.device)
+
+        # Apply the mask to the scores, by setting masked positions to -inf
+        scores = scores.masked_fill(causal_mask, float('-inf'))
+
+        # Apply softmax to get attention weights
+        attention_weights = F.softmax(scores, dim=-1)
+
+        return attention_weights
 
     def apply_attention(self, queries, keys, values):
         """
@@ -183,13 +195,16 @@ class MultiHeadedAttention(nn.Module):
             backpropagation. It is returned here for debugging purposes.
 
         """
+        # Get attention weights
+        attn_weights = self.get_attention_weights(queries, keys)
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
+        # Apply attention to values
+        attended_values = torch.matmul(attn_weights, values)
 
-        raise NotImplementedError
+        # Concatenate the attended values of all heads
+        outputs = self.merge_heads(attended_values)
 
+        return outputs, attn_weights
 
     def split_heads(self, tensor):
         """
@@ -212,14 +227,13 @@ class MultiHeadedAttention(nn.Module):
             Here `dim` is the same dimension as the one in the definition of the input `tensor` above.
         """
 
-        batch_size, sequence_length, d_model = tensor.shape()
+        batch_size, sequence_length, d_model = tensor.shape
 
         # Reshape the tensor to separate the head dimension
         tensor = tensor.view(batch_size, sequence_length, self.num_heads, self.head_size)
 
         # Transpoze sequence_length and num_heads
         return tensor.transpose(1, 2)
-
 
     def merge_heads(self, tensor):
         """
@@ -250,8 +264,7 @@ class MultiHeadedAttention(nn.Module):
         # Concatenate the head vectors
         return tensor.contiguous().view(batch_size, sequence_length, num_heads * head_size)
 
-
-    def forward(self,  queries: Tensor, keys: Tensor, values: Tensor):
+    def forward(self, queries: Tensor, keys: Tensor, values: Tensor):
         """
         Multi-headed attention.
 
@@ -303,15 +316,25 @@ class MultiHeadedAttention(nn.Module):
             purposes only, and it is not used in the computation graph for
             backpropagation. It is returned here for debugging purposes.
         """
+        # Linear projections
+        q = self.W_Q(queries)  # (batch_size, sequence_length, d_model)
+        k = self.W_K(keys)  # (batch_size, sequence_length, d_model)
+        v = self.W_V(values)  # (batch_size, sequence_length, d_model)
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
+        # Split heads
+        q = self.split_heads(q)  # (batch_size, sequence_length, sequence_length, head_size)
+        k = self.split_heads(k)  # (batch_size, sequence_length, sequence_length, head_size)
+        v = self.split_heads(v)  # (batch_size, sequence_length, sequence_length, head_size)
 
-        raise NotImplementedError
+        # Apply attention
+        context, attn_weights = self.apply_attention(q, k, v)
+
+        # Apply output projection
+        output = self.W_O(context)
 
         # Use clone().detach() to detach attn_weights from the computation graph
         # Since we don't need to backpropagate through them, we can detach them from the graph
+        return output, attn_weights.clone().detach()
 
 
 ########################################################################################
@@ -319,13 +342,13 @@ class MultiHeadedAttention(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-        self,
-        d_model: int,
-        num_heads: int,
-        multiplier: int,
-        dropout: float,
-        non_linearity: str = "gelu",
-        bias: bool = True
+            self,
+            d_model: int,
+            num_heads: int,
+            multiplier: int,
+            dropout: float,
+            non_linearity: str = "gelu",
+            bias: bool = True
     ) -> None:
         """
         This module combines a Multi-headed Attention module and an MLP to
@@ -334,7 +357,7 @@ class Block(nn.Module):
         super().__init__()
 
         assert non_linearity in ["relu", "gelu"]
-        non_linearities = {"relu":nn.ReLU, "gelu":nn.GELU}
+        non_linearities = {"relu": nn.ReLU, "gelu": nn.GELU}
 
         self.self_attn = MultiHeadedAttention(d_model, num_heads, bias=bias)
         self.self_attn_norm = LayerNorm(d_model)
@@ -364,19 +387,20 @@ class Block(nn.Module):
         # (B, num_heads, S, S)
         return a2, layer_attns
 
+
 ########################################################################################
 ########################################################################################
 
 class Decoder(nn.Module):
     def __init__(
-        self,
-        d_model: int,
-        num_heads: int,
-        num_blocks: int,
-        multiplier: int,
-        dropout: float,
-        non_linearity: str = "gelu",
-        bias: bool = True
+            self,
+            d_model: int,
+            num_heads: int,
+            num_blocks: int,
+            multiplier: int,
+            dropout: float,
+            non_linearity: str = "gelu",
+            bias: bool = True
     ) -> None:
         """
         A decoder layer.
@@ -387,7 +411,7 @@ class Decoder(nn.Module):
 
         self.blocks = nn.ModuleList(
             [
-                Block(d_model, num_heads, multiplier, dropout, non_linearity,  bias=bias)
+                Block(d_model, num_heads, multiplier, dropout, non_linearity, bias=bias)
                 for _ in range(num_blocks)
             ]
         )
@@ -418,11 +442,11 @@ class Decoder(nn.Module):
 
 class GPTEmbedding(nn.Module):
     def __init__(
-        self,
-        vocabulary_size,
-        embedding_size,
-        n_max_positions,
-        padding_index:int=None,
+            self,
+            vocabulary_size,
+            embedding_size,
+            n_max_positions,
+            padding_index: int = None,
     ):
         """
         Embedding module for GPT.
@@ -447,7 +471,7 @@ class GPTEmbedding(nn.Module):
             "position_encoding",
             self.create_sinusoidal_embeddings(
                 n_positions=n_max_positions, dimension=embedding_size
-            ) # (n_max_positions, embedding_size)
+            )  # (n_max_positions, embedding_size)
         )
 
     @classmethod
@@ -476,7 +500,6 @@ class GPTEmbedding(nn.Module):
 
         raise NotImplementedError
 
-
     def forward(self, tokens: Tensor) -> Tensor:
         """
         Return the embeddings from a sequence of input tokens
@@ -501,24 +524,25 @@ class GPTEmbedding(nn.Module):
 
         raise NotImplementedError
 
+
 ########################################################################################
 ########################################################################################
 
 class GPT(nn.Module):
     def __init__(
-        self,
-        num_heads: int,
-        num_layers: int,
-        embedding_size : int,
-        vocabulary_size : int,
-        sequence_length : int,
-        multiplier: float = 4,
-        dropout: float = 0.0,
-        non_linearity: str = "gelu",
-        padding_index:int = None,
-        bias_attention:bool=True,
-        bias_classifier:bool=True,
-        share_embeddings:bool=False
+            self,
+            num_heads: int,
+            num_layers: int,
+            embedding_size: int,
+            vocabulary_size: int,
+            sequence_length: int,
+            multiplier: float = 4,
+            dropout: float = 0.0,
+            non_linearity: str = "gelu",
+            padding_index: int = None,
+            bias_attention: bool = True,
+            bias_classifier: bool = True,
+            share_embeddings: bool = False
     ) -> None:
         super().__init__()
 
@@ -530,21 +554,20 @@ class GPT(nn.Module):
         self.non_linearity = non_linearity
 
         self.embedding = GPTEmbedding(
-            vocabulary_size = vocabulary_size,
-            embedding_size = embedding_size,
-            n_max_positions = sequence_length,
-            padding_index = padding_index
+            vocabulary_size=vocabulary_size,
+            embedding_size=embedding_size,
+            n_max_positions=sequence_length,
+            padding_index=padding_index
         )
 
-
         self.decoder = Decoder(
-            d_model = embedding_size,
-            num_heads = num_heads,
-            num_blocks = num_layers,
-            multiplier = multiplier,
-            dropout = dropout,
-            non_linearity = non_linearity,
-            bias = bias_attention
+            d_model=embedding_size,
+            num_heads=num_heads,
+            num_blocks=num_layers,
+            multiplier=multiplier,
+            dropout=dropout,
+            non_linearity=non_linearity,
+            bias=bias_attention
         )
 
         self.classifier = nn.Linear(embedding_size, vocabulary_size, bias=bias_classifier)
@@ -569,28 +592,30 @@ class GPT(nn.Module):
 
         raise NotImplementedError
 
+
 ########################################################################################
 ########################################################################################
 
 if __name__ == "__main__":
 
     # Data
-    vocabulary_size=4
+    vocabulary_size = 4
     batch_size, sequence_length = 10, 5
-    sequences = torch.Tensor(batch_size, sequence_length+1).uniform_(1, vocabulary_size).long() # (batch_size, sequence_length+1)
-    mask = torch.ones(batch_size, sequence_length, dtype=torch.long) # (batch_size, sequence_length)
-    for i in range(batch_size) :
+    sequences = torch.Tensor(batch_size, sequence_length + 1).uniform_(1,
+                                                                       vocabulary_size).long()  # (batch_size, sequence_length+1)
+    mask = torch.ones(batch_size, sequence_length, dtype=torch.long)  # (batch_size, sequence_length)
+    for i in range(batch_size):
         seq_len = torch.randint(low=2, high=sequence_length, size=(1,))[0]
-        mask[i,seq_len:] = 0
-        sequences[i,seq_len:] = 0
+        mask[i, seq_len:] = 0
+        sequences[i, seq_len:] = 0
     # next sentence prediction
-    inputs = sequences[:,:-1] # (batch_size, sequence_length)
-    targets = sequences[:,1:] # (batch_size, sequence_length)
+    inputs = sequences[:, :-1]  # (batch_size, sequence_length)
+    targets = sequences[:, 1:]  # (batch_size, sequence_length)
 
     # Model
-    embedding_size=6
-    num_heads=2
-    num_layers=4
+    embedding_size = 6
+    num_heads = 2
+    num_layers = 4
     assert embedding_size % num_heads == 0
 
     model = GPT(
@@ -599,14 +624,14 @@ if __name__ == "__main__":
         embedding_size,
         vocabulary_size,
         sequence_length,
-        multiplier = 4,
-        dropout = 0.0,
-        non_linearity = "gelu",
-        padding_index = None,
+        multiplier=4,
+        dropout=0.0,
+        non_linearity="gelu",
+        padding_index=None,
         bias_attention=True,
         bias_classifier=False,
         share_embeddings=False
     )
 
     logits, (hidden_states, attentions) = model(inputs)
-    print(logits.shape, hidden_states.shape, attentions.shape)   
+    print(logits.shape, hidden_states.shape, attentions.shape)

@@ -256,7 +256,7 @@ class MultiHeadedAttention(nn.Module):
             Reshaped and transposed tensor containing the concatenated head vectors.
             Here `dim` is the same dimension as the one in the definition of the input `tensor` above.
         """
-        batch_size, num_heads, sequence_length, head_size = tensor.shape()
+        batch_size, num_heads, sequence_length, head_size = tensor.shape
 
         # Reshape the tensor to switch num_heads and sequence_length
         tensor = tensor.reshape(1, 2)
@@ -493,12 +493,27 @@ class GPTEmbedding(nn.Module):
         position_enc (`torch.FloatTensor` of shape `(n_positions, dimension)`)
             The tensor containing the positional embeddings.
         """
+        # Initialize the positional encoding matrix
+        position_enc = torch.zeros(n_positions, dimension)
 
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
+        # Create a tensor of positions
+        position = torch.arange(0, n_positions, dtype=torch.float).unsqueeze(1)  # shape (n_positions, 1)
 
-        raise NotImplementedError
+        # Create a tensor for the division term: 1000^(2i/dimension)
+        div_term = torch.exp(
+            torch.arange(0, dimension, 2).float() * (-math.log(10000.0) / dimension))  # shape (1, dimension)
+
+        # Fill the even indices with sine
+        position_enc[:, 0::2] = torch.sin(position * div_term)
+
+        # Fill the odd indices with cosine
+        # Handle the case when dimension is odd
+        if dimension % 2 == 1:
+            position_enc[:, 1::2] = torch.cos(position * div_term)[:, :-1]
+        else:
+            position_enc[:, 1::2] = torch.cos(position * div_term)
+
+        return position_enc
 
     def forward(self, tokens: Tensor) -> Tensor:
         """
@@ -518,11 +533,19 @@ class GPTEmbedding(nn.Module):
             of the 1st sequence in the batch (index 0).
 
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
+        # Get token embeddings
+        token_embeddings = self.tokens(tokens)  # (batch_size, sequence_length, embedding_size)
 
-        raise NotImplementedError
+        # Get the sequence length
+        sequence_length = tokens.size(1)
+
+        # Add positional embeddings
+        position_embeddings = self.position_encoding[:sequence_length, :]
+
+        # Add token and positional embeddings
+        embeddings = token_embeddings + position_embeddings
+
+        return embeddings
 
 
 ########################################################################################

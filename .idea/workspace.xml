@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="842bdf98-98bf-4595-86be-cd8270126096" name="Changes" comment="implementing GPTEmbedding class">
+    <list default="true" id="842bdf98-98bf-4595-86be-cd8270126096" name="Changes" comment="implementing GPT">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gpt.py" beforeDir="false" afterPath="$PROJECT_DIR$/gpt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trainer.py" beforeDir="false" afterPath="$PROJECT_DIR$/trainer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,7 +71,7 @@
       <workItem from="1742660514750" duration="11094000" />
       <workItem from="1742686339838" duration="1650000" />
       <workItem from="1742708648953" duration="4237000" />
-      <workItem from="1742770539055" duration="12014000" />
+      <workItem from="1742770539055" duration="14605000" />
     </task>
     <task id="LOCAL-00001" summary="upload HW2">
       <option name="closed" value="true" />
@@ -137,7 +137,15 @@
       <option name="project" value="LOCAL" />
       <updated>1742913701386</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="implementing GPT">
+      <option name="closed" value="true" />
+      <created>1742949176984</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1742949176984</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -151,7 +159,8 @@
     <MESSAGE value="gpt.py" />
     <MESSAGE value="update lstm.py" />
     <MESSAGE value="implementing GPTEmbedding class" />
-    <option name="LAST_COMMIT_MESSAGE" value="implementing GPTEmbedding class" />
+    <MESSAGE value="implementing GPT" />
+    <option name="LAST_COMMIT_MESSAGE" value="implementing GPT" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/HW2$lstm.coverage" NAME="lstm Coverage Results" MODIFIED="1742708946952" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

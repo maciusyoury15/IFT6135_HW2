@@ -258,8 +258,8 @@ class MultiHeadedAttention(nn.Module):
         """
         batch_size, num_heads, sequence_length, head_size = tensor.shape
 
-        # Reshape the tensor to switch num_heads and sequence_length
-        tensor = tensor.reshape(1, 2)
+        # Transpose the tensor to switch num_heads and sequence_length
+        tensor = tensor.transpose(1, 2)
 
         # Concatenate the head vectors
         return tensor.contiguous().view(batch_size, sequence_length, num_heads * head_size)
@@ -536,11 +536,15 @@ class GPTEmbedding(nn.Module):
         # Get token embeddings
         token_embeddings = self.tokens(tokens)  # (batch_size, sequence_length, embedding_size)
 
-        # Get the sequence length
-        sequence_length = tokens.size(1)
+        # Get batch size and sequence length
+        batch_size, sequence_length = tokens.size()
 
         # Add positional embeddings
+        # Ensure we don't exceed the pre-computed positional encodings
         position_embeddings = self.position_encoding[:sequence_length, :]
+
+        # Broadcast positional embeddings to match batch size
+        position_embeddings = position_embeddings.unsqueeze(0).expand(batch_size, -1, -1)
 
         # Add token and positional embeddings
         embeddings = token_embeddings + position_embeddings
@@ -612,8 +616,17 @@ class GPT(nn.Module):
                 and
                 (batch_size, num_layers, num_heads, sequence_length, sequence_length)
         """
+        # Get embeddings from the input tokens
+        embeddings = self.embedding(x)    # (batch_size, sequence_length, embedding_size)
 
-        raise NotImplementedError
+        # Pass through the decoder
+        hidden_state, (hidden_states, attentions) = self.decoder(embeddings)
+
+        # Pass through the classifier to get logits
+        logits = self.classifier(hidden_state)    # (batch_size, sequence_length, vocab_size)
+
+        return logits, hidden_states, attentions
+
 
 
 ########################################################################################

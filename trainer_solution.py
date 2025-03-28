@@ -37,6 +37,9 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
     accuracy : torch.Tensor
         Accuracy over the batch where a sequence is correct only if all valid RHS tokens are predicted correctly.
     """
+    # Get device from input tensors
+    device = logits.device
+
     # Create right-hand side mask
     batch_size, seq_length = mask.shape
     rhs_mask = torch.zeros_like(mask, dtype=torch.bool)
@@ -65,7 +68,7 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
     sample_lengths = rhs_mask.sum(dim=-1).float()
 
     # Avoid division by zero
-    sample_lengths = torch.max(sample_lengths, torch.tensor(1.0).to(sample_lengths.device))
+    sample_lengths = torch.max(sample_lengths, torch.tensor(1.0, device=device))
 
     sample_losses = -masked_log_probs.sum(dim=-1) / sample_lengths
 
@@ -73,7 +76,7 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
     sample_preds = logits.argmax(dim=-1)
 
     # Explicit accuracy calculation
-    sample_corrects = torch.zeros(batch_size, dtype=torch.bool, device=logits.device)
+    sample_corrects = torch.zeros(batch_size, dtype=torch.bool, device=device)
     for i in range(batch_size):
         # Get RHS indices
         rhs_indices = rhs_mask[i].nonzero().flatten()

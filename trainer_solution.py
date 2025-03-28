@@ -40,9 +40,14 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
     # Get device from input tensors
     device = logits.device
 
-    # Create right-hand side mask
+    # Ensure all input tensors are on the same device
+    targets = targets.to(device)
+    eq_positions = eq_positions.to(device)
+    mask = mask.to(device)
+
+    # Create right-hand side mask (ensure it's on the correct device)
     batch_size, seq_length = mask.shape
-    rhs_mask = torch.zeros_like(mask, dtype=torch.bool)
+    rhs_mask = torch.zeros_like(mask, dtype=torch.bool).to(device)
 
     # Create RHS mask for each sequence
     for i in range(batch_size):
@@ -61,7 +66,9 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
     # Gather log probabilities of correct tokens
     gathered_log_probs = log_probs.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
 
-    # Apply RHS mask to log probabilities
+    # Apply RHS mask to log probabilities (ensure both are on the same device)
+    gathered_log_probs = gathered_log_probs.to(device)
+    rhs_mask = rhs_mask.to(device)
     masked_log_probs = gathered_log_probs * rhs_mask
 
     # Compute per-sample loss

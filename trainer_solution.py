@@ -47,8 +47,8 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
         rhs_start = eq_positions[i] + 1
 
         # Find the last valid token in the sequence
-        valid_tokens = mask[i].nonzero(as_tuple=False)
-        if len(valid_tokens) > 0:
+        valid_tokens = mask[i].nonzero()
+        if valid_tokens.numel() > 0:
             rhs_end = valid_tokens[-1].item() + 1
             rhs_mask[i, rhs_start:rhs_end] = mask[i, rhs_start:rhs_end]
 
@@ -71,15 +71,30 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
 
     # Compute per-sample accuracy
     sample_preds = logits.argmax(dim=-1)
-    sample_corrects = ((sample_preds == targets) * rhs_mask).all(dim=-1)
+
+    # Explicit accuracy calculation
+    sample_corrects = torch.zeros(batch_size, dtype=torch.bool, device=logits.device)
+    for i in range(batch_size):
+        # Get RHS indices
+        rhs_indices = rhs_mask[i].nonzero().flatten()
+
+        # Check if there are any RHS tokens
+        if rhs_indices.numel() > 0:
+            # Check if all RHS tokens are correctly predicted
+            sample_corrects[i] = torch.all(
+                sample_preds[i, rhs_indices] == targets[i, rhs_indices]
+            )
+        else:
+            # If no RHS tokens, consider it incorrect
+            sample_corrects[i] = False
 
     # Apply reduction
     if reduction == 'mean':
         loss = sample_losses.mean()
-        accuracy = sample_corrects.float().mean()
+        accuracy = sample_corrects.float().mean().item()
     elif reduction == 'sum':
         loss = sample_losses.sum()
-        accuracy = sample_corrects.float().sum()
+        accuracy = sample_corrects.float().sum().item()
     else:  # 'none'
         loss = sample_losses
         accuracy = sample_corrects.float()

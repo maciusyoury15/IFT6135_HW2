@@ -625,7 +625,7 @@ class GPT(nn.Module):
         # Pass through the classifier to get logits
         logits = self.classifier(hidden_state)    # (batch_size, sequence_length, vocab_size)
 
-        return logits, hidden_states, attentions
+        return logits, (hidden_states, attentions)
 
 
 

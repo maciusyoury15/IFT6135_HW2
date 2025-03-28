@@ -51,11 +51,16 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
         all valid RHS tokens are predicted correctly.
     """
 
-    # Create right-hand mask
-    # Use eq_positions to create a mask that selects only tokens after '='
+    # Create a right-hand side mask for each sequence
+    batch_size, seq_length = mask.shape
     rhs_mask = torch.zeros_like(mask, dtype=torch.bool)
-    for i in range(len(eq_positions)):
-        rhs_mask[i, eq_positions[i] + 1:] = mask[i, eq_positions[i] + 1:]
+
+    # Iterate through each sequence to create RHS mask
+    for i in range(batch_size):
+        # Create mask from the position after '=' to the end of valid tokens
+        rhs_start = eq_positions[i] + 1
+        rhs_end = mask[i].nonzero(as_tuple=False)[-1].item() + 1
+        rhs_mask[i, rhs_start:rhs_end] = mask[i, rhs_start:rhs_end]
 
     # Compute log probabilities using log_softmax
     log_probs = F.log_softmax(logits, dim=1)

@@ -14,69 +14,62 @@ import time
 
 def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean'):
     """
-    Computes the mean negative log-likelihood loss and the accuracy on the right-hand side (RHS)
+    Computes the negative log-likelihood loss and the accuracy on the right-hand side (RHS)
     of each equation in the mini-batch.
-
-    The equation can be :
-        - "[BOS] [a] [+] [b] [=] [r] [EOS] [PAD] [PAD]", in that case target is "[a] [+] [b] [=] [r] [EOS] [PAD] [PAD]"
-        - "[BOS] [a] [+] [b] [+] [c] [=] [r] [EOS]", in that case target is "[a] [+] [b] [+] [c] [=] [r] [EOS]"
-
-    Let :
-        - B : batch size
-        - S : sequence length
-        - V : vocabulary size
 
     Parameters
     ----------
     logits : torch.FloatTensor of shape (B, S, V)
-        A tensor containing the logits of the next token for all positions in each sequence of the mini-batch.
+        Logits of the next token for all positions in each sequence of the mini-batch.
     targets : torch.LongTensor of shape (B, S)
-        A tensor containing the target next tokens for all positions in each sequence of the mini-batch.
+        Target next tokens for all positions in each sequence of the mini-batch.
     eq_positions : torch.LongTensor of shape (B,)
-        The position of the '=' token in each sequence (each sample has exactly one '=').
+        The position of the '=' token in each sequence.
     mask : torch.LongTensor of shape (B, S)
-        A mask indicating valid tokens (1 if valid, 0 for PAD tokens).
+        Mask indicating valid tokens (1 if valid, 0 for PAD tokens).
     reduction : str, optional
         Specifies the reduction to apply to the output: 'none' | 'mean' | 'sum'.
-        - 'none': no reduction will be applied
-        - 'mean': average the output of the batch dimension.
-        - 'sum': sum the output of the batch dimension.
 
     Returns
     -------
-    loss : torch.Tensor of shape (1,) or (B,) depending on the reduction
-        The negative log-likelihood loss computed over the valid (non-PAD) RHS tokens.
-    accuracy : torch.Tensor of shape (1,) or (B,) depending on the reduction
-        The accuracy over the batch where a sequence is counted as correct only if
-        all valid RHS tokens are predicted correctly.
+    loss : torch.Tensor
+        Negative log-likelihood loss computed over the valid RHS tokens.
+    accuracy : torch.Tensor
+        Accuracy over the batch where a sequence is correct only if all valid RHS tokens are predicted correctly.
     """
-
-    # Create a right-hand side mask for each sequence
+    # Create right-hand side mask
     batch_size, seq_length = mask.shape
     rhs_mask = torch.zeros_like(mask, dtype=torch.bool)
 
-    # Iterate through each sequence to create RHS mask
+    # Create RHS mask for each sequence
     for i in range(batch_size):
-        # Create mask from the position after '=' to the end of valid tokens
+        # RHS starts after '=' token
         rhs_start = eq_positions[i] + 1
-        rhs_end = mask[i].nonzero(as_tuple=False)[-1].item() + 1
-        rhs_mask[i, rhs_start:rhs_end] = mask[i, rhs_start:rhs_end]
 
-    # Compute log probabilities using log_softmax
-    log_probs = F.log_softmax(logits, dim=1)
+        # Find the last valid token in the sequence
+        valid_tokens = mask[i].nonzero(as_tuple=False)
+        if len(valid_tokens) > 0:
+            rhs_end = valid_tokens[-1].item() + 1
+            rhs_mask[i, rhs_start:rhs_end] = mask[i, rhs_start:rhs_end]
 
-    # Perform advanced indexing to select log probabilities of correct tokens
+    # Compute log probabilities
+    log_probs = F.log_softmax(logits, dim=-1)
+
+    # Gather log probabilities of correct tokens
     gathered_log_probs = log_probs.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
 
-    # Mask the log probabilities to keep only RHS tokens
+    # Apply RHS mask to log probabilities
     masked_log_probs = gathered_log_probs * rhs_mask
 
-    # Compute per-sample loss (average log probability of correct tokens in RHS)
-    sample_lengths = rhs_mask.sum(dim=-1)
+    # Compute per-sample loss
+    sample_lengths = rhs_mask.sum(dim=-1).float()
+
+    # Avoid division by zero
+    sample_lengths = torch.max(sample_lengths, torch.tensor(1.0).to(sample_lengths.device))
+
     sample_losses = -masked_log_probs.sum(dim=-1) / sample_lengths
 
     # Compute per-sample accuracy
-    # All RHS tokens must be correctly predicted
     sample_preds = logits.argmax(dim=-1)
     sample_corrects = ((sample_preds == targets) * rhs_mask).all(dim=-1)
 

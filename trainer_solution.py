@@ -112,6 +112,140 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
     return loss, accuracy
 
 
+# Modified get_loss_and_accuracy function that can separate by operation type
+def get_loss_and_accuracy_by_operation(model, dataloader, device, eq_positions_types=[3, 5]):
+    model.eval()
+    results = {eq_pos: {'loss': 0.0, 'accuracy': 0.0, 'count': 0} for eq_pos in eq_positions_types}
+
+    with torch.no_grad():
+        for batch_x, batch_y, eq_positions, mask in dataloader:
+            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+            eq_positions = eq_positions.to(device)
+            mask = mask.to(device)
+
+            logits, *_ = model(batch_x)
+
+            # Get per-sample loss and accuracy
+            loss, accuracy = get_loss_and_accuracy(logits, batch_y, eq_positions, mask, reduction='none')
+
+            # Group by operation type (eq_positions = 3 for binary, 5 for ternary)
+            for eq_pos in eq_positions_types:
+                indices = (eq_positions == eq_pos).nonzero(as_tuple=True)[0]
+                if len(indices) > 0:
+                    results[eq_pos]['loss'] += loss[indices].sum().item()
+                    results[eq_pos]['accuracy'] += accuracy[indices].sum().item()
+                    results[eq_pos]['count'] += len(indices)
+
+    # Calculate averages
+    for eq_pos in eq_positions_types:
+        if results[eq_pos]['count'] > 0:
+            results[eq_pos]['loss'] /= results[eq_pos]['count']
+            results[eq_pos]['accuracy'] /= results[eq_pos]['count']
+
+    return results
+
+
+# Modified train function to track loss/accuracy per operation type
+def train_with_operation_tracking(model, train_loader, valid_loader, optimizer, scheduler, device, exp_name, checkpoint_path, n_steps, eq_positions_types=[3, 5]):
+    os.makedirs(checkpoint_path, exist_ok=True)
+
+    # Metrics to track
+    all_metrics = {
+        'steps': [],
+        'train_loss': [], 'train_acc': [],
+        'val_loss': [], 'val_acc': [],
+        'train_binary_loss': [], 'train_binary_acc': [],
+        'train_ternary_loss': [], 'train_ternary_acc': [],
+        'val_binary_loss': [], 'val_binary_acc': [],
+        'val_ternary_loss': [], 'val_ternary_acc': []
+    }
+
+    # Evaluate initial model
+    train_by_operation = get_loss_and_accuracy_by_operation(model, train_loader, device, eq_positions_types)
+    val_by_operation = get_loss_and_accuracy_by_operation(model, valid_loader, device, eq_positions_types)
+
+    # Track initial metrics
+    all_metrics['steps'].append(0)
+    all_metrics['train_loss'].append(sum(train_by_operation[eq_pos]['loss'] * train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                     sum(train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+    all_metrics['train_acc'].append(sum(train_by_operation[eq_pos]['accuracy'] * train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                    sum(train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+    all_metrics['val_loss'].append(sum(val_by_operation[eq_pos]['loss'] * val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                   sum(val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+    all_metrics['val_acc'].append(sum(val_by_operation[eq_pos]['accuracy'] * val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                  sum(val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+
+    # Track by operation type
+    all_metrics['train_binary_loss'].append(train_by_operation[3]['loss'])
+    all_metrics['train_binary_acc'].append(train_by_operation[3]['accuracy'])
+    all_metrics['train_ternary_loss'].append(train_by_operation[5]['loss'])
+    all_metrics['train_ternary_acc'].append(train_by_operation[5]['accuracy'])
+    all_metrics['val_binary_loss'].append(val_by_operation[3]['loss'])
+    all_metrics['val_binary_acc'].append(val_by_operation[3]['accuracy'])
+    all_metrics['val_ternary_loss'].append(val_by_operation[5]['loss'])
+    all_metrics['val_ternary_acc'].append(val_by_operation[5]['accuracy'])
+
+    # Training loop
+    step = 0
+    pbar = tqdm(total=n_steps, desc="Training")
+
+    while step < n_steps:
+        for batch_x, batch_y, eq_positions, mask in train_loader:
+            if step >= n_steps:
+                break
+
+            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+            eq_positions = eq_positions.to(device)
+            mask = mask.to(device)
+
+            # Training step
+            optimizer.zero_grad()
+            model.train()
+            logits, *_ = model(batch_x)
+            loss, _ = get_loss_and_accuracy(logits, batch_y, eq_positions, mask)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            scheduler.step()
+
+            # Evaluate every 100 steps or at the end
+            if step % 100 == 0 or step == n_steps - 1:
+                model.eval()
+                with torch.no_grad():
+                    train_by_operation = get_loss_and_accuracy_by_operation(model, train_loader, device, eq_positions_types)
+                    val_by_operation = get_loss_and_accuracy_by_operation(model, valid_loader, device, eq_positions_types)
+
+                # Track metrics
+                all_metrics['steps'].append(step + 1)
+                all_metrics['train_loss'].append(sum(train_by_operation[eq_pos]['loss'] * train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                                 sum(train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+                all_metrics['train_acc'].append(sum(train_by_operation[eq_pos]['accuracy'] * train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                                sum(train_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+                all_metrics['val_loss'].append(sum(val_by_operation[eq_pos]['loss'] * val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                               sum(val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+                all_metrics['val_acc'].append(sum(val_by_operation[eq_pos]['accuracy'] * val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types) /
+                                              sum(val_by_operation[eq_pos]['count'] for eq_pos in eq_positions_types))
+
+                # Track by operation type
+                all_metrics['train_binary_loss'].append(train_by_operation[3]['loss'])
+                all_metrics['train_binary_acc'].append(train_by_operation[3]['accuracy'])
+                all_metrics['train_ternary_loss'].append(train_by_operation[5]['loss'])
+                all_metrics['train_ternary_acc'].append(train_by_operation[5]['accuracy'])
+                all_metrics['val_binary_loss'].append(val_by_operation[3]['loss'])
+                all_metrics['val_binary_acc'].append(val_by_operation[3]['accuracy'])
+                all_metrics['val_ternary_loss'].append(val_by_operation[5]['loss'])
+                all_metrics['val_ternary_acc'].append(val_by_operation[5]['accuracy'])
+
+                # Save metrics
+                torch.save(all_metrics, os.path.join(checkpoint_path, f"{exp_name}_metrics.pt"))
+
+                # Save model
+                if step % 1000 == 0 or step == n_steps - 1:
+                    state = {
+                        "model_state_dict": model.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                    }
+
 ########################################################################################
 ########################################################################################
 
@@ -240,10 +374,8 @@ def train(
             optimizer.step()
 
             # ==========================
-            # TODO: Write your code here
-            # ==========================
-            # scheduler.step()
-            # current_lr = scheduler.optimizer.param_groups[0]["lr"]
+            scheduler.step()
+            current_lr = scheduler.optimizer.param_groups[0]["lr"]
             # ==========================
             # ==========================
 
@@ -280,12 +412,8 @@ def train(
             cur_step += 1
 
         # ==========================
-        # TODO: Write your code here
-        # ==========================
-        ###
-        # scheduler.step()
-        # current_lr = scheduler.optimizer.param_groups[0]["lr"]
-        # ==========================
+        scheduler.step()
+        current_lr = scheduler.optimizer.param_groups[0]["lr"]
         # ==========================
 
         ##############

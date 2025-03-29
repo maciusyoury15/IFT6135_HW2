@@ -97,16 +97,23 @@ class DummyScheduler:
 ########################################################################################
 ########################################################################################
 
-def train(args):
+def train(args, exp_param: str=None):
     # Seed the experiment, for repeatability
     seed_experiment(args.seed)
 
-    # Create a directory to save the experiment results
-    checkpoint_path = os.path.join(args.log_dir, str(args.exp_id))
-    i=0
-    while os.path.exists(checkpoint_path):
-        i+=1
-        checkpoint_path = os.path.join(args.log_dir, str(i))
+    # # Create a directory to save the experiment results
+    # checkpoint_path = os.path.join(args.log_dir, str(args.exp_id))
+    # i=0
+    # while os.path.exists(checkpoint_path):
+    #     i+=1
+    #     checkpoint_path = os.path.join(args.log_dir, str(i))
+    # os.makedirs(checkpoint_path, exist_ok=True)
+    if exp_param is not None:
+        exp_name = f"{model_type}_{exp_param}{r_train}_seed_{seed}"
+    elif:
+        exp_name = f"{model_type}_seed_{seed}"
+
+    checkpoint_path = os.join(args.log_dir, exp_name)
     os.makedirs(checkpoint_path, exist_ok=True)
 
     ## Print parameters
@@ -192,12 +199,17 @@ def train(args):
     elif args.optimizer == "momentum":
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
-    # ==========================
-    # TODO: Write your code here
+
     # ==========================
     # Learning rate scheduler
     scheduler = DummyScheduler(optimizer) # Dummy scheduler that does nothing
-    # ==========================
+
+    # StepLR reduces the learning rate by gamma after step_size steps
+    # scheduler = optim.lr_scheduler.StepLR(
+    #     optimizer,
+    #     step_size=args.n_steps // 3,  # Reduce LR after 1/3 of total steps
+    #     gamma=0.1  # Reduce LR by factor of 10
+    # )
     # ==========================
 
     # Train    

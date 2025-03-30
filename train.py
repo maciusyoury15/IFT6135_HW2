@@ -97,7 +97,7 @@ class DummyScheduler:
 ########################################################################################
 ########################################################################################
 
-def train(args, exp_param: str=None):
+def train(args, exp_param: str=None, exp_param_val: int= None):
     # Seed the experiment, for repeatability
     seed_experiment(args.seed)
     seed = args.seed
@@ -110,7 +110,7 @@ def train(args, exp_param: str=None):
     #     checkpoint_path = os.path.join(args.log_dir, str(i))
     # os.makedirs(checkpoint_path, exist_ok=True)
     if exp_param is not None:
-        args.exp_name = f"{exp_param}_seed_{seed}"
+        args.exp_name = f"{exp_param}_{exp_param_val}_seed_{seed}"
     elif exp_param is None:
         args.exp_name = f"seed_{seed}"
 
@@ -126,9 +126,10 @@ def train(args, exp_param: str=None):
 
     # Data
     (train_dataset, valid_dataset), tokenizer, MAX_LENGTH, padding_index = get_arithmetic_dataset(
-        args.p, args.p, args.operator, args.r_train, args.operation_orders, is_symmetric=False, shuffle=True, seed=args.seed
+        args.p, args.p, args.operator, args.r_train, args.operation_orders,
+        is_symmetric=False, shuffle=True, seed=args.seed
     )
-    
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=min(args.train_batch_size, len(train_dataset)),
@@ -154,10 +155,10 @@ def train(args, exp_param: str=None):
     vocabulary_size = len(tokenizer)
     if args.model == "lstm":
         model = LSTMLM(
-            vocabulary_size = vocabulary_size, 
-            embedding_size = args.embedding_size, 
-            hidden_size = args.hidden_size, 
-            num_layers = args.num_layers, 
+            vocabulary_size = vocabulary_size,
+            embedding_size = args.embedding_size,
+            hidden_size = args.hidden_size,
+            num_layers = args.num_layers,
             dropout = args.dropout,
             padding_index = padding_index,
             bias_lstm = True,
@@ -166,7 +167,7 @@ def train(args, exp_param: str=None):
         )
     elif args.model == "gpt":
         model = GPT(
-            num_heads = args.num_heads, 
+            num_heads = args.num_heads,
             num_layers = args.num_layers,
             embedding_size = args.embedding_size,
             vocabulary_size = vocabulary_size,
@@ -185,7 +186,7 @@ def train(args, exp_param: str=None):
     #print(model)
     model = model.to(args.device)
 
-    if args.verbose : 
+    if args.verbose :
         print("Model :", model, "\n")
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print(f"Number of model trainable parameters : {n_params}")
@@ -204,20 +205,14 @@ def train(args, exp_param: str=None):
     # ==========================
     # Learning rate scheduler
     scheduler = DummyScheduler(optimizer) # Dummy scheduler that does nothing
-
-    # StepLR reduces the learning rate by gamma after step_size steps
-    # scheduler = optim.lr_scheduler.StepLR(
-    #     optimizer,
-    #     step_size=args.n_steps // 3,  # Reduce LR after 1/3 of total steps
-    #     gamma=0.1  # Reduce LR by factor of 10
-    # )
     # ==========================
 
-    # Train    
+    # Train
     all_metrics = train_model(
-        model, train_dataloader, train_dataloader_for_eval, valid_dataloader, optimizer, scheduler,
-        args.device, 
-        args.exp_name, checkpoint_path, 
+        model, train_dataloader, train_dataloader_for_eval,
+        valid_dataloader, optimizer, scheduler,
+        args.device,
+        args.exp_name, checkpoint_path,
         n_steps=args.n_steps,
         eval_first=args.eval_first,
         eval_period=args.eval_period,
@@ -226,7 +221,7 @@ def train(args, exp_param: str=None):
         save_statistic_step=args.save_statistic_step,
         verbose=args.verbose
     )
-    
+
     # Plot
     plot_loss_accs(
         all_metrics, multiple_runs=False, log_x=False, log_y=False,
@@ -238,7 +233,7 @@ def train(args, exp_param: str=None):
 ########################################################################################
 ########################################################################################
 
-def train_m_models(args, exp_param: str=None, M:int=None, seeds:list=None):
+def train_m_models(args, exp_param: str=None, exp_param_val: int=None, M:int=None, seeds:list=None):
     """Train M models and plot the loss and accuracies of each model separately."""
     assert M is not None or seeds is not None, "Either M or seeds should be provided."
     if seeds is not None:
@@ -250,7 +245,7 @@ def train_m_models(args, exp_param: str=None, M:int=None, seeds:list=None):
         print(f"Model {m+1}/{M}")
         args.exp_id = m # Set the experiment id
         args.seed = seed # Set the seed
-        all_metrics, checkpoint_path = train(args, exp_param) # Train the model
+        all_metrics, checkpoint_path = train(args, exp_param, exp_param_val) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(
@@ -305,7 +300,7 @@ class Arguments:
     exp_id: int = 0
     exp_name: str = "test"
     log_dir: str = '../logs'
-    seed: int = 42    
+    seed: int = 42
     verbose: bool = True
 
 ########################################################################################

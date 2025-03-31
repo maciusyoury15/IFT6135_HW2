@@ -103,7 +103,7 @@ def train(args, seed, m, exp_param:str=None, exp_param_val:float=None):
     args.seed = seed  # Set the seed
     model_id = f"{exp_param}_{exp_param_val}" if exp_param else f"model_{m}"
     args.exp_name = f"{model_id}_seed_{seed}"
-    args.log_dir = os.path.join(args.log_dir, model_id)
+    args.log_dir = os.path.join(args.log_dir, exp_param if exp_param else "default", model_id)
     checkpoint_path = os.path.join(args.log_dir)
     os.makedirs(checkpoint_path, exist_ok=True)
 

@@ -76,7 +76,7 @@
       <workItem from="1743176598959" duration="5143000" />
       <workItem from="1743190788926" duration="13067000" />
       <workItem from="1743216383618" duration="26315000" />
-      <workItem from="1743369626926" duration="17632000" />
+      <workItem from="1743369626926" duration="20373000" />
     </task>
     <task id="LOCAL-00001" summary="upload HW2">
       <option name="closed" value="true" />
@@ -262,7 +262,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743406222124</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="update train.py">
+      <option name="closed" value="true" />
+      <created>1743407140982</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1743407140982</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

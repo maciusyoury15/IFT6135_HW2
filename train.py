@@ -98,12 +98,11 @@ class DummyScheduler:
 ########################################################################################
 ########################################################################################
 
-def train(args, seed, m, exp_param:str=None, exp_param_val:float=None):
+def train(args, experiment_dir, seed):
     # Create a directory to save the experiment results
     args.seed = seed  # Set the seed
-    model_id = f"{exp_param}_{exp_param_val}_seed_{seed}" if exp_param else f"seed_{seed}"
-    args.exp_name = f"{model_id}"
-    args.log_dir = os.path.join(args.log_dir, model_id)
+    args.exp_name = f"r_train_{args.r_train}_seed_{seed}"
+    args.log_dir = os.path.join(experiment_dir, args.exp_name)
     checkpoint_path = args.log_dir
     os.makedirs(checkpoint_path, exist_ok=True)
 
@@ -225,7 +224,7 @@ def train(args, seed, m, exp_param:str=None, exp_param_val:float=None):
 ########################################################################################
 ########################################################################################
 
-def train_m_models(args, exp_param:str=None, exp_param_val:float=None, M:int=None, seeds:list=None):
+def train_m_models(args, experiment_dir, M:int=None, seeds:list=None):
     """Train M models and plot the loss and accuracies of each model separately."""
     assert M is not None or seeds is not None, "Either M or seeds should be provided."
     if seeds is not None:
@@ -235,7 +234,7 @@ def train_m_models(args, exp_param:str=None, exp_param_val:float=None, M:int=Non
     all_checkpoint_paths = []
     for seed, m in zip(seeds, range(M)):
         print(f"Model {m + 1}/{M}")
-        all_metrics, checkpoint_path = train(args, seed, m, exp_param, exp_param_val) # Train the model
+        all_metrics, checkpoint_path = train(args, experiment_dir, seed, m) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(

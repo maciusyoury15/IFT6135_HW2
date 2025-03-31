@@ -107,6 +107,8 @@ def train(args, seed, m, exp_param:str=None, exp_param_val:float=None):
     checkpoint_path = os.path.join(args.log_dir)
     os.makedirs(checkpoint_path, exist_ok=True)
 
+    print(f"checkpoint_path = {checkpoint_path}")
+
     ## Print parameters
     if args.verbose :
         print("=="*60)

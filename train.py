@@ -98,7 +98,7 @@ class DummyScheduler:
 ########################################################################################
 ########################################################################################
 
-def train(args, seed, m, exp_param: str=None, exp_param_val: int=None):
+def train(args, seed, m, exp_param:str=None, exp_param_val:float=None):
     # Create a directory to save the experiment results
     args.seed = seed  # Set the seed
     model_id = f"{exp_param}_{exp_param_val}" if exp_param else f"model_{m}"
@@ -223,7 +223,7 @@ def train(args, seed, m, exp_param: str=None, exp_param_val: int=None):
 ########################################################################################
 ########################################################################################
 
-def train_m_models(args, exp_param: str=None, exp_param_val: float=None, M:int=None, seeds:list=None):
+def train_m_models(args, exp_param:str=None, exp_param_val:float=None, M:int=None, seeds:list=None):
     """Train M models and plot the loss and accuracies of each model separately."""
     assert M is not None or seeds is not None, "Either M or seeds should be provided."
     if seeds is not None:
@@ -236,8 +236,9 @@ def train_m_models(args, exp_param: str=None, exp_param_val: float=None, M:int=N
         all_metrics, checkpoint_path = train(args, seed, m, exp_param, exp_param_val) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
+    exp_name = f"{exp_param}_{exp_param_val}" if exp_param else "experiment"
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(
-        all_checkpoint_paths, args.exp_name, just_files=True, verbose=args.verbose)
+        all_checkpoint_paths, exp_name, just_files=True, verbose=args.verbose)
 
     # # Plot
     # plot_loss_accs(

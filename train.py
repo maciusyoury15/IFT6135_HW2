@@ -101,10 +101,10 @@ class DummyScheduler:
 def train(args, seed, m, exp_param:str=None, exp_param_val:float=None):
     # Create a directory to save the experiment results
     args.seed = seed  # Set the seed
-    model_id = f"{exp_param}_{exp_param_val}" if exp_param else f"model_{m}"
-    args.exp_name = f"{model_id}_seed_{seed}"
-    args.log_dir = os.path.join(args.log_dir, exp_param if exp_param else "default", model_id)
-    checkpoint_path = os.path.join(args.log_dir)
+    model_id = f"{exp_param}_{exp_param_val}_seed_{seed}" if exp_param else f"seed_{seed}"
+    args.exp_name = f"{model_id}"
+    args.log_dir = os.path.join(args.log_dir, model_id)
+    checkpoint_path = args.log_dir
     os.makedirs(checkpoint_path, exist_ok=True)
 
     print(f"checkpoint_path = {checkpoint_path}")
@@ -238,9 +238,8 @@ def train_m_models(args, exp_param:str=None, exp_param_val:float=None, M:int=Non
         all_metrics, checkpoint_path = train(args, seed, m, exp_param, exp_param_val) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
-    exp_name = f"{exp_param}_{exp_param_val}" if exp_param else "experiment"
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(
-        all_checkpoint_paths, exp_name, just_files=True, verbose=args.verbose)
+        all_checkpoint_paths, args.exp_name, just_files=True, verbose=args.verbose)
 
     # # Plot
     # plot_loss_accs(

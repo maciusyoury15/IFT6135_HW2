@@ -96,6 +96,7 @@ def get_all_checkpoints_per_trials(all_checkpoint_paths, exp_name, just_files=Fa
             print(checkpoint_path)
             # print(os.listdir(checkpoint_path))
 
+        exp_name = checkpoint_path.split('/')[-1]   # Add by youry_m
         all_models, statistics = get_all_checkpoints(checkpoint_path, exp_name, just_files)
         all_models_per_trials.append(all_models)
         all_statistics.append(statistics)

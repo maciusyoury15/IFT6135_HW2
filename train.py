@@ -234,7 +234,7 @@ def train_m_models(args, experiment_dir, M:int=None, seeds:list=None):
     all_checkpoint_paths = []
     for seed, m in zip(seeds, range(M)):
         print(f"Model {m + 1}/{M}")
-        all_metrics, checkpoint_path = train(args, experiment_dir, seed, m) # Train the model
+        all_metrics, checkpoint_path = train(args, experiment_dir, seed) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(

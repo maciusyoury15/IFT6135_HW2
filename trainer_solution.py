@@ -278,8 +278,8 @@ def train(
             cur_step += 1
 
         # ==========================
-        scheduler.step()
-        current_lr = scheduler.optimizer.param_groups[0]["lr"]
+        # scheduler.step()
+        # current_lr = scheduler.optimizer.param_groups[0]["lr"]
         # ==========================
 
         ##############

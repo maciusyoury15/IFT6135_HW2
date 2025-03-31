@@ -1,6 +1,7 @@
 #import torch.nn.functional as F
 import torch
 import torch.optim as optim
+from numba.core.cgutils import if_zero
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -97,24 +98,13 @@ class DummyScheduler:
 ########################################################################################
 ########################################################################################
 
-def train(args, exp_param: str=None, exp_param_val: int= None):
-    # Seed the experiment, for repeatability
-    seed_experiment(args.seed)
-    seed = args.seed
-
-    # # Create a directory to save the experiment results
-    # checkpoint_path = os.path.join(args.log_dir, str(args.exp_id))
-    # i=0
-    # while os.path.exists(checkpoint_path):
-    #     i+=1
-    #     checkpoint_path = os.path.join(args.log_dir, str(i))
-    # os.makedirs(checkpoint_path, exist_ok=True)
-    if exp_param is not None:
-        args.exp_name = f"{exp_param}_{exp_param_val}_seed_{seed}"
-    elif exp_param is None:
-        args.exp_name = f"seed_{seed}"
-
-    checkpoint_path = os.path.join(args.log_dir, args.exp_name)
+def train(args, seed, m, exp_param: str=None, exp_param_val: int=None):
+    # Create a directory to save the experiment results
+    args.seed = seed  # Set the seed
+    model_id = f"{exp_param}_{exp_param_val}" if exp_param else f"model_{m}"
+    args.exp_name = f"{model_id}_seed_{seed}"
+    args.log_dir = os.path.join(args.log_dir, model_id)
+    checkpoint_path = os.path.join(args.log_dir)
     os.makedirs(checkpoint_path, exist_ok=True)
 
     ## Print parameters
@@ -222,10 +212,10 @@ def train(args, exp_param: str=None, exp_param_val: int= None):
         verbose=args.verbose
     )
 
-    # Plot
-    plot_loss_accs(
-        all_metrics, multiple_runs=False, log_x=False, log_y=False,
-        fileName=args.exp_name, filePath=checkpoint_path, show=False)
+    # # Plot
+    # plot_loss_accs(
+    #     all_metrics, multiple_runs=False, log_x=False, log_y=False,
+    #     fileName=args.exp_name, filePath=checkpoint_path, show=False)
 
     return all_metrics, checkpoint_path
 
@@ -233,7 +223,7 @@ def train(args, exp_param: str=None, exp_param_val: int= None):
 ########################################################################################
 ########################################################################################
 
-def train_m_models(args, exp_param: str=None, exp_param_val: int=None, M:int=None, seeds:list=None):
+def train_m_models(args, exp_param: str=None, exp_param_val: float=None, M:int=None, seeds:list=None):
     """Train M models and plot the loss and accuracies of each model separately."""
     assert M is not None or seeds is not None, "Either M or seeds should be provided."
     if seeds is not None:
@@ -242,19 +232,17 @@ def train_m_models(args, exp_param: str=None, exp_param_val: int=None, M:int=Non
         seeds = [args.seed + m if args.seed is not None else None for m in range(M)]
     all_checkpoint_paths = []
     for seed, m in zip(seeds, range(M)):
-        print(f"Model {m+1}/{M}")
-        args.exp_id = m # Set the experiment id
-        args.seed = seed # Set the seed
-        all_metrics, checkpoint_path = train(args, exp_param, exp_param_val) # Train the model
+        print(f"Model {m + 1}/{M}")
+        all_metrics, checkpoint_path = train(args, seed, m, exp_param, exp_param_val) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(
         all_checkpoint_paths, args.exp_name, just_files=True, verbose=args.verbose)
 
-    # Plot
-    plot_loss_accs(
-        all_metrics, multiple_runs=True, log_x=False, log_y=False,
-        fileName=f'{args.exp_name}_M={M}', filePath=args.log_dir, show=False)
+    # # Plot
+    # plot_loss_accs(
+    #     all_metrics, multiple_runs=True, log_x=False, log_y=False,
+    #     fileName=f'{args.exp_name}_M={M}', filePath=args.log_dir, show=False)
 
     return all_models_per_trials, all_metrics, all_checkpoint_paths
 
@@ -306,12 +294,12 @@ class Arguments:
 ########################################################################################
 ########################################################################################
 
-if __name__ == "__main__":
-    args = Arguments()
-    print("=="*60)
-    #all_metrics, checkpoint_path = train(args)
-
-    args.n_steps = 10**3 * 1 + 1
-    all_models_per_trials, all_metrics, all_checkpoint_paths = train_m_models(args, M=2, seeds=None)
-    print("=="*60)
-    print("Experiment finished.")
+# if __name__ == "__main__":
+#     args = Arguments()
+#     print("=="*60)
+#     #all_metrics, checkpoint_path = train(args)
+#
+#     args.n_steps = 10**3 * 1 + 1
+#     all_models_per_trials, all_metrics, all_checkpoint_paths = train_m_models(args, M=2, seeds=None)
+#     print("=="*60)
+#     print("Experiment finished.")

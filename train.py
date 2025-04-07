@@ -1,7 +1,6 @@
 #import torch.nn.functional as F
 import torch
 import torch.optim as optim
-# from numba.core.cgutils import if_zero
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -19,6 +18,7 @@ from gpt_solution import GPT
 from trainer_solution import train as train_model
 from checkpointing import get_all_checkpoints_per_trials
 from plotter import plot_loss_accs
+from torch.utils.data import random_split, ConcatDataset
 
 ########################################################################################
 ########################################################################################
@@ -98,15 +98,17 @@ class DummyScheduler:
 ########################################################################################
 ########################################################################################
 
-def train(args, experiment_dir, seed):
-    # Create a directory to save the experiment results
-    args.seed = seed  # Set the seed
-    args.exp_name = f"r_train_{args.r_train}_seed_{seed}"
-    args.log_dir = os.path.join(experiment_dir, args.exp_name)
-    checkpoint_path = args.log_dir
-    os.makedirs(checkpoint_path, exist_ok=True)
+def train(args):
+    # Seed the experiment, for repeatability
+    seed_experiment(args.seed)
 
-    print(f"checkpoint_path = {checkpoint_path}")
+    # Create a directory to save the experiment results
+    checkpoint_path = os.path.join(args.log_dir, str(args.exp_id))
+    i=0
+    while os.path.exists(checkpoint_path):
+        i+=1
+        checkpoint_path = os.path.join(args.log_dir, str(i))
+    os.makedirs(checkpoint_path, exist_ok=True)
 
     ## Print parameters
     if args.verbose :
@@ -115,12 +117,47 @@ def train(args, experiment_dir, seed):
             print(k, ":", v)
         print("=="*60)
 
-    # Data
-    (train_dataset, valid_dataset), tokenizer, MAX_LENGTH, padding_index = get_arithmetic_dataset(
-        args.p, args.p, args.operator, args.r_train, args.operation_orders,
-        is_symmetric=False, shuffle=True, seed=args.seed
-    )
 
+    if args.balanced_data:
+        print("balanced data")
+        (dataset, _), tokenizer, MAX_LENGTH, padding_index = get_arithmetic_dataset(
+            args.p, args.p, args.operator, 1.0, args.operation_orders, seed=args.seed
+        )
+
+        dataset_per_orders = {
+            2: torch.utils.data.Subset(
+                dataset,
+                [i for i in range(len(dataset)) if dataset[i][2] == 3]
+            ),  # a + b = r EOS PAD PAD
+            3: torch.utils.data.Subset(
+                dataset,
+                [i for i in range(len(dataset)) if dataset[i][2] == 5]
+            )  # a + b + c = r EOS
+        }
+
+        #print("dataset_per_orders[2][0]")
+        #print(dataset_per_orders[2][0:2])
+
+        train_3_size = int(len(dataset_per_orders[2]) * args.r_train)
+        valid_3_size = len(dataset_per_orders[2]) - train_3_size
+        train_3, valid_3 = random_split(dataset_per_orders[2], [train_3_size, valid_3_size])
+
+        train_5_size = int(len(dataset_per_orders[3]) * args.r_train)
+        valid_5_size = len(dataset_per_orders[3]) - train_5_size
+        train_5, valid_5 = random_split(dataset_per_orders[3], [train_5_size, valid_5_size])
+
+        # Combinaison des fractions pour obtenir les ensembles finaux
+        train_dataset = ConcatDataset([train_3, train_5])
+        valid_dataset = ConcatDataset([valid_3, valid_5])
+    else:
+        # Data
+        (train_dataset, valid_dataset), tokenizer, MAX_LENGTH, padding_index = get_arithmetic_dataset(
+            args.p, args.p, args.operator, args.r_train, args.operation_orders, is_symmetric=False, shuffle=True,
+            seed=args.seed
+        )
+
+
+    
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=min(args.train_batch_size, len(train_dataset)),
@@ -146,10 +183,10 @@ def train(args, experiment_dir, seed):
     vocabulary_size = len(tokenizer)
     if args.model == "lstm":
         model = LSTMLM(
-            vocabulary_size = vocabulary_size,
-            embedding_size = args.embedding_size,
-            hidden_size = args.hidden_size,
-            num_layers = args.num_layers,
+            vocabulary_size = vocabulary_size, 
+            embedding_size = args.embedding_size, 
+            hidden_size = args.hidden_size, 
+            num_layers = args.num_layers, 
             dropout = args.dropout,
             padding_index = padding_index,
             bias_lstm = True,
@@ -158,7 +195,7 @@ def train(args, experiment_dir, seed):
         )
     elif args.model == "gpt":
         model = GPT(
-            num_heads = args.num_heads,
+            num_heads = args.num_heads, 
             num_layers = args.num_layers,
             embedding_size = args.embedding_size,
             vocabulary_size = vocabulary_size,
@@ -177,10 +214,23 @@ def train(args, experiment_dir, seed):
     #print(model)
     model = model.to(args.device)
 
-    if args.verbose :
+    if args.verbose : 
         print("Model :", model, "\n")
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"Number of model trainable parameters : {n_params}")
+        print(f"old Number of model trainable parameters : {n_params}")
+
+    if args.model == "lstm":
+      n_params = sum(p.numel() for name, p in model.named_parameters()
+      if p.requires_grad and name not in ['embedding.weight'])
+      #print(f"new Number of model trainable parameters : {n_params}")
+    if args.model == "gpt":
+      n_params = sum(p.numel() for name, p in model.named_parameters()
+      if p.requires_grad and name not in ['embedding.tokens.weight'])
+      #print(f"new Number of model trainable parameters : {n_params}")
+
+        #print([name for name, p in model.named_parameters()])
+
+
 
     # Optimizer
     if args.optimizer == "adamw":
@@ -192,18 +242,19 @@ def train(args, experiment_dir, seed):
     elif args.optimizer == "momentum":
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
-
+    # ==========================
+    # TODO: Write your code here
     # ==========================
     # Learning rate scheduler
     scheduler = DummyScheduler(optimizer) # Dummy scheduler that does nothing
     # ==========================
+    # ==========================
 
-    # Train
+    # Train    
     all_metrics = train_model(
-        model, train_dataloader, train_dataloader_for_eval,
-        valid_dataloader, optimizer, scheduler,
-        args.device,
-        args.exp_name, checkpoint_path,
+        model, train_dataloader, train_dataloader_for_eval, valid_dataloader, optimizer, scheduler,
+        args.device, 
+        args.exp_name, checkpoint_path, 
         n_steps=args.n_steps,
         eval_first=args.eval_first,
         eval_period=args.eval_period,
@@ -212,19 +263,19 @@ def train(args, experiment_dir, seed):
         save_statistic_step=args.save_statistic_step,
         verbose=args.verbose
     )
+    
+    # Plot
+    plot_loss_accs(
+        all_metrics, multiple_runs=False, log_x=False, log_y=False,
+        fileName=args.exp_name, filePath=checkpoint_path, show=False)
 
-    # # Plot
-    # plot_loss_accs(
-    #     all_metrics, multiple_runs=False, log_x=False, log_y=False,
-    #     fileName=args.exp_name, filePath=checkpoint_path, show=False)
-
-    return all_metrics, checkpoint_path
+    return all_metrics, checkpoint_path, n_params, train_dataset, model, tokenizer
 
 
 ########################################################################################
 ########################################################################################
 
-def train_m_models(args, experiment_dir, M:int=None, seeds:list=None):
+def train_m_models(args, M:int=None, seeds:list=None):
     """Train M models and plot the loss and accuracies of each model separately."""
     assert M is not None or seeds is not None, "Either M or seeds should be provided."
     if seeds is not None:
@@ -233,19 +284,21 @@ def train_m_models(args, experiment_dir, M:int=None, seeds:list=None):
         seeds = [args.seed + m if args.seed is not None else None for m in range(M)]
     all_checkpoint_paths = []
     for seed, m in zip(seeds, range(M)):
-        print(f"Model {m + 1}/{M}")
-        all_metrics, checkpoint_path = train(args, experiment_dir, seed) # Train the model
+        print(f"Model {m+1}/{M}")
+        args.exp_id = m # Set the experiment id
+        args.seed = seed # Set the seed
+        all_metrics, checkpoint_path, n_params = train(args) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(
         all_checkpoint_paths, args.exp_name, just_files=True, verbose=args.verbose)
 
-    # # Plot
-    # plot_loss_accs(
-    #     all_metrics, multiple_runs=True, log_x=False, log_y=False,
-    #     fileName=f'{args.exp_name}_M={M}', filePath=args.log_dir, show=False)
+    # Plot
+    plot_loss_accs(
+        all_metrics, multiple_runs=True, log_x=False, log_y=False,
+        fileName=f'{args.exp_name}_M={M}', filePath=args.log_dir, show=False)
 
-    return all_models_per_trials, all_metrics, all_checkpoint_paths
+    return all_models_per_trials, all_metrics, all_checkpoint_paths, n_params
 
 ########################################################################################
 ########################################################################################
@@ -289,18 +342,18 @@ class Arguments:
     exp_id: int = 0
     exp_name: str = "test"
     log_dir: str = '../logs'
-    seed: int = 42
+    seed: int = 42    
     verbose: bool = True
 
 ########################################################################################
 ########################################################################################
 
-# if __name__ == "__main__":
-#     args = Arguments()
-#     print("=="*60)
-#     #all_metrics, checkpoint_path = train(args)
-#
-#     args.n_steps = 10**3 * 1 + 1
-#     all_models_per_trials, all_metrics, all_checkpoint_paths = train_m_models(args, M=2, seeds=None)
-#     print("=="*60)
-#     print("Experiment finished.")
+if __name__ == "__main__":
+    args = Arguments()
+    print("=="*60)
+    #all_metrics, checkpoint_path = train(args)
+
+    args.n_steps = 10**3 * 1 + 1
+    all_models_per_trials, all_metrics, all_checkpoint_paths = train_m_models(args, M=2, seeds=None)
+    print("=="*60)
+    print("Experiment finished.")

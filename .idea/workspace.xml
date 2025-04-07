@@ -4,8 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="842bdf98-98bf-4595-86be-cd8270126096" name="Changes" comment="checkpoint">
+    <list default="true" id="842bdf98-98bf-4595-86be-cd8270126096" name="Changes" comment="trainer_solution.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/checkpointing.py" beforeDir="false" afterPath="$PROJECT_DIR$/checkpointing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gpt_solution.py" beforeDir="false" afterPath="$PROJECT_DIR$/gpt_solution.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lstm_solution.py" beforeDir="false" afterPath="$PROJECT_DIR$/lstm_solution.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r_train_0.5_seed_42_state_10000_acc=1.0_loss=0.0004545646661426872.pth" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/run_exp.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_exp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trainer_solution.py" beforeDir="false" afterPath="$PROJECT_DIR$/trainer_solution.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -76,7 +82,7 @@
       <workItem from="1743176598959" duration="5143000" />
       <workItem from="1743190788926" duration="13067000" />
       <workItem from="1743216383618" duration="26315000" />
-      <workItem from="1743369626926" duration="69050000" />
+      <workItem from="1743369626926" duration="76681000" />
     </task>
     <task id="LOCAL-00001" summary="upload HW2">
       <option name="closed" value="true" />
@@ -310,7 +316,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743791734016</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="trainer_solution.py">
+      <option name="closed" value="true" />
+      <created>1744006652569</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1744006652569</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -333,7 +347,8 @@
     <MESSAGE value="update checkpointing.py" />
     <MESSAGE value="update files" />
     <MESSAGE value="checkpoint" />
-    <option name="LAST_COMMIT_MESSAGE" value="checkpoint" />
+    <MESSAGE value="trainer_solution.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="trainer_solution.py" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/HW2$lstm.coverage" NAME="lstm Coverage Results" MODIFIED="1742708946952" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

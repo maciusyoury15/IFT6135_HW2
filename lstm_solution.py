@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-
 ########################################################################################
 ########################################################################################
 
@@ -70,7 +69,6 @@ class LSTMCell(nn.Module):
         h_new = o * torch.tanh(c_new)
 
         return h_new, c_new
-
 
 ########################################################################################
 ########################################################################################
@@ -180,19 +178,19 @@ class LSTMLM(nn.Module):
     This module returns for each position in the sequence the log-probabilities of the next token.
     The module also returns the hidden states of the LSTM.
     """
-
     def __init__(
-            self,
-            vocabulary_size: int,
-            embedding_size: int,
-            hidden_size: int,
-            num_layers: int,
-            dropout: float = 0.0,
-            padding_index: int = None,
-            bias_lstm: bool = True,
-            bias_classifier: bool = True,
-            share_embeddings: bool = False
-    ):
+        self,
+        vocabulary_size: int,
+        embedding_size: int,
+        hidden_size: int,
+        num_layers: int,
+        dropout: float = 0.0,
+        padding_index: int = None,
+        bias_lstm: bool = True,
+        bias_classifier: bool = True,
+        share_embeddings: bool = False
+        ):
+
         super(LSTMLM, self).__init__()
         self.vocabulary_size = vocabulary_size
         self.embedding_size = embedding_size
@@ -237,17 +235,15 @@ class LSTMLM(nn.Module):
             - c (`torch.FloatTensor` of shape `(num_layers, batch_size, hidden_size)`)
         """
         # Convert token indices to embeddings
-        embeddings = self.embedding(x)  # (batch_size, sequence_length, embedding_size)
+        embedded = self.embedding(x)  # (batch_size, sequence_length, embedding_size)
 
         # Pass embeddings through the LSTM
-        lstm_output, final_states = self.lstm(embeddings, hidden_states)
-        # lstm_output: (batch_size, sequence_length, hidden_size)
-        # final_states: tuple of (h_n, c_n) each of shape (num_layers, batch_size, hidden_size)
+        outputs, final_hidden_states = self.lstm(embedded, hidden_states)
 
         # Project the output to vocabulary size (logits)
-        logits = self.classifier(lstm_output)  # (batch_size, sequence_length, vocabulary_size)
+        logits = self.classifier(outputs)  # (batch_size, sequence_length, vocabulary_size)
 
-        return logits, final_states
+        return logits, final_hidden_states
 
 
 ########################################################################################

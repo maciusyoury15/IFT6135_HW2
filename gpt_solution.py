@@ -11,7 +11,6 @@ import math
 
 from typing import Tuple, List, Dict, Union
 
-
 ########################################################################################
 ########################################################################################
 
@@ -45,16 +44,10 @@ class LayerNorm(nn.Module):
         outputs (`torch.FloatTensor` of shape `(*dims, hidden_size)`)
             The output tensor, having the same shape as `inputs`.
         """
-        # Calculate the mean along the last dimension
+
         mean = inputs.mean(dim=-1, keepdim=True)
-
-        # Calculate the variance along the last dimension
-        var = ((inputs - mean) ** 2).mean(dim=-1, keepdim=True)
-
-        # Normalize the input
+        var = inputs.var(dim=-1, unbiased=False, keepdim=True)  # use of biased variance
         normalized_inputs = (inputs - mean) / torch.sqrt(var + self.eps)
-
-        # Scale and shift using learnable parameters
         outputs = self.weight * normalized_inputs + self.bias
 
         return outputs
@@ -123,14 +116,12 @@ class MultiHeadedAttention(nn.Module):
             should not influence on the 6th token (7 > 5).
         """
         # Calculate the raw attention scores
-        scores = torch.matmul(queries, keys.transpose(-2, -1)) / math.sqrt(self.head_size)
+        scores = torch.matmul(queries, keys.transpose(-2, -1)) / torch.sqrt(
+            torch.tensor(self.head_size, dtype=queries.dtype))
 
         # Apply causal mask to ensure no attention to future tokens
         sequence_length = queries.shape[-2]
-        causal_mask = torch.triu(torch.ones(sequence_length, sequence_length), diagonal=1).bool()
-
-        # Convert to device of scores
-        causal_mask = causal_mask.to(scores.device)
+        causal_mask = torch.tril(torch.ones(sequence_length, sequence_length, device=queries.device)).unsqueeze(0).unsqueeze(0)  # (1, 1, S, S)
 
         # Apply the mask to the scores, by setting masked positions to -inf
         scores = scores.masked_fill(causal_mask, float('-inf'))
@@ -206,6 +197,7 @@ class MultiHeadedAttention(nn.Module):
 
         return outputs, attn_weights
 
+
     def split_heads(self, tensor):
         """
         Split the head vectors.
@@ -228,12 +220,11 @@ class MultiHeadedAttention(nn.Module):
         """
 
         batch_size, sequence_length, d_model = tensor.shape
+        dim = d_model // self.num_heads
+        tensor = tensor.view(batch_size, sequence_length, self.num_heads, dim)  # (batch_size, sequence_length, num_heads, dim)
+        tensor = tensor.permute(0, 2, 1, 3)     # (batch_size, sequence_length, num_heads, dim)
+        return tensor
 
-        # Reshape the tensor to separate the head dimension
-        tensor = tensor.view(batch_size, sequence_length, self.num_heads, self.head_size)
-
-        # Transpoze sequence_length and num_heads
-        return tensor.transpose(1, 2)
 
     def merge_heads(self, tensor):
         """
@@ -256,13 +247,11 @@ class MultiHeadedAttention(nn.Module):
             Reshaped and transposed tensor containing the concatenated head vectors.
             Here `dim` is the same dimension as the one in the definition of the input `tensor` above.
         """
-        batch_size, num_heads, sequence_length, head_size = tensor.shape
 
-        # Transpose the tensor to switch num_heads and sequence_length
-        tensor = tensor.transpose(1, 2)
-
-        # Concatenate the head vectors
-        return tensor.contiguous().view(batch_size, sequence_length, num_heads * head_size)
+        batch_size, num_heads, sequence_length, dim = tensor.shape
+        tensor = tensor.permute(0, 2, 1, 3)  # (batch_size, sequence_length, num_heads, dim)
+        tensor = tensor.contiguous().view(batch_size, sequence_length, num_heads * dim)  # (batch_size, sequence_length, combined_dim)
+        return tensor
 
     def forward(self, queries: Tensor, keys: Tensor, values: Tensor):
         """
@@ -493,27 +482,18 @@ class GPTEmbedding(nn.Module):
         position_enc (`torch.FloatTensor` of shape `(n_positions, dimension)`)
             The tensor containing the positional embeddings.
         """
-        # Initialize the positional encoding matrix
-        position_enc = torch.zeros(n_positions, dimension)
 
-        # Create a tensor of positions
-        position = torch.arange(0, n_positions, dtype=torch.float).unsqueeze(1)  # shape (n_positions, 1)
+        positions = torch.arange(n_positions, dtype=torch.float).unsqueeze(1)
+        indices = torch.arange(0, dimension, dtype=torch.float)
+        div_term = torch.exp(- (indices // 2) * (math.log(10000.0) / (dimension // 2)))
 
-        # Create a tensor for the division term: 1000^(2i/dimension)
-        div_term = torch.exp(
-            torch.arange(0, dimension, 2).float() * (-math.log(10000.0) / dimension))  # shape (1, dimension)
-
-        # Fill the even indices with sine
-        position_enc[:, 0::2] = torch.sin(position * div_term)
-
-        # Fill the odd indices with cosine
-        # Handle the case when dimension is odd
-        if dimension % 2 == 1:
-            position_enc[:, 1::2] = torch.cos(position * div_term)[:, :-1]
-        else:
-            position_enc[:, 1::2] = torch.cos(position * div_term)
+        # Compute the embeddings
+        position_enc = torch.zeros((n_positions, dimension), dtype=torch.float)
+        position_enc[:, 0::2] = torch.sin(positions * div_term[0::2])
+        position_enc[:, 1::2] = torch.cos(positions * div_term[1::2])
 
         return position_enc
+
 
     def forward(self, tokens: Tensor) -> Tensor:
         """
@@ -616,17 +596,14 @@ class GPT(nn.Module):
                 and
                 (batch_size, num_layers, num_heads, sequence_length, sequence_length)
         """
-        # Get embeddings from the input tokens
+
         embeddings = self.embedding(x)    # (batch_size, sequence_length, embedding_size)
 
-        # Pass through the decoder
-        hidden_state, (hidden_states, attentions) = self.decoder(embeddings)
+        decoder_output, (hidden_states, attentions) = self.decoder(embeddings)
 
-        # Pass through the classifier to get logits
-        logits = self.classifier(hidden_state)    # (batch_size, sequence_length, vocab_size)
+        logits = self.classifier(decoder_output)    # (batch_size, sequence_length, vocab_size)
 
         return logits, (hidden_states, attentions)
-
 
 
 ########################################################################################

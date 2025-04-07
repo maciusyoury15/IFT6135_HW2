@@ -1,12 +1,9 @@
 import torch
-# from torch import Tensor
 import torch.nn.functional as F
 
 from tqdm import tqdm
 import os
 from collections import defaultdict
-# from typing import List, Dict, Tuple, Set, Optional, Union, Any, Callable
-# import time
 
 
 ########################################################################################
@@ -117,24 +114,45 @@ def get_loss_and_accuracy(logits, targets, eq_positions, mask, reduction='mean')
 
 @torch.no_grad()
 def eval_model(model, loader, device):
+    import numpy as np
     model.eval()
-    acc = 0
-    loss = 0
-    n = 0
+    all_loss, all_acc = [], []
+    all_loss_bin, all_acc_bin = [], []
+    all_loss_ter, all_acc_ter = [], []
+
     for batch in loader:
-        batch_x, batch_y, eq_positions, mask = batch  # (B, S), (B, S), (B,), (B, S)
+        batch_x, batch_y, eq_positions, mask = batch
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)
-        logits, *_ = model(batch_x)  # (B, S, V)
-        batch_loss, batch_acc = get_loss_and_accuracy(logits, batch_y, eq_positions, mask)
-        n += batch_x.shape[0]
-        loss += batch_loss.item() * batch_x.shape[0]
-        acc += batch_acc * batch_x.shape[0]
+        logits, *_ = model(batch_x)
+
+        losses, accs = get_loss_and_accuracy(logits, batch_y, eq_positions, mask, reduction='none')
+        eq_positions = eq_positions.cpu()
+
+        all_loss.extend(losses.tolist())
+        all_acc.extend(accs.tolist())
+
+        for i in range(len(eq_positions)):
+            pos = eq_positions[i].item()
+            if pos == 3:  # binary
+                all_loss_bin.append(losses[i].item())
+                all_acc_bin.append(accs[i].item())
+            elif pos == 5:  # ternary
+                all_loss_ter.append(losses[i].item())
+                all_acc_ter.append(accs[i].item())
+
 
     ##########
     # You can add more metrics in the dictionary (e.g., l2 norm of the parameters, etc.)
     ##########
 
-    return {"loss": loss / n, "accuracy": acc / n}
+    return {
+        "loss": np.mean(all_loss),
+        "accuracy": np.mean(all_acc),
+        "loss_binary": np.mean(all_loss_bin) if all_loss_bin else 0.0,
+        "loss_ternary": np.mean(all_loss_ter) if all_loss_ter else 0.0,
+        "acc_binary": np.mean(all_acc_bin) if all_acc_bin else 0.0,
+        "acc_ternary": np.mean(all_acc_ter) if all_acc_ter else 0.0,
+    }
 
 
 ########################################################################################

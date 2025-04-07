@@ -287,7 +287,7 @@ def train_m_models(args, M:int=None, seeds:list=None):
         print(f"Model {m+1}/{M}")
         args.exp_id = m # Set the experiment id
         args.seed = seed # Set the seed
-        all_metrics, checkpoint_path, n_params = train(args) # Train the model
+        all_metrics, checkpoint_path, n_params, _, _, _ = train(args) # Train the model
         all_checkpoint_paths.append(checkpoint_path)
 
     all_models_per_trials, all_metrics = get_all_checkpoints_per_trials(

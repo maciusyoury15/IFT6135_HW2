@@ -115,18 +115,20 @@ class MultiHeadedAttention(nn.Module):
             model here, `attention_weights[1, 3, 5, 7] == 0`, since the 8th token
             should not influence on the 6th token (7 > 5).
         """
-        # Calculate the raw attention scores
+        B, H, S, D = queries.shape
+
+        # Scaled dot-product
         scores = torch.matmul(queries, keys.transpose(-2, -1)) / torch.sqrt(
-            torch.tensor(self.head_size, dtype=queries.dtype))
+            torch.tensor(D, dtype=queries.dtype, device=queries.device))
 
-        # Apply causal mask to ensure no attention to future tokens
-        sequence_length = queries.shape[-2]
-        causal_mask = torch.tril(torch.ones(sequence_length, sequence_length, device=queries.device)).unsqueeze(0).unsqueeze(0)  # (1, 1, S, S)
+        # Causal mask (lower triangle) — allow attending to self and previous tokens
+        causal_mask = torch.tril(torch.ones(S, S, device=queries.device)).unsqueeze(0).unsqueeze(
+            0)  # shape: (1, 1, S, S)
 
-        # Apply the mask to the scores, by setting masked positions to -inf
-        scores = scores.masked_fill(causal_mask, float('-inf'))
+        # Set scores to -inf where future tokens would be attended
+        scores = scores.masked_fill(causal_mask == 0, float('-inf'))
 
-        # Apply softmax to get attention weights
+        # Softmax over last dimension (attention over sequence)
         attention_weights = F.softmax(scores, dim=-1)
 
         return attention_weights
